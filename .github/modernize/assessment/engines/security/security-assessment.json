@@ -1,0 +1,98 @@
+{
+  "GeneratedAt": "2026-10-07T14:12:32.146598Z",
+  "ProjectPath": ".",
+  "Summary": {
+    "TotalFindings": 6,
+    "CveCount": 0,
+    "CweCount": 6,
+    "BySeverity": {
+      "mandatory": 0,
+      "optional": 2,
+      "potential": 4
+    },
+    "ByCategory": {
+      "Code Quality": 2,
+      "Concurrency & Synchronization": 1,
+      "Credentials & Secrets": 3
+    },
+    "TotalRulesAssessed": 59,
+    "RulesPassed": 53
+  },
+  "CveFindings": [],
+  "CweFindings": [
+    {
+      "Id": "CWE-606",
+      "Name": "Unchecked Input for Loop Condition",
+      "Category": "Code Quality",
+      "Severity": "potential",
+      "StoryPoint": 3,
+      "Description": "The product does not properly check inputs that are used for loop conditions, potentially leading to a denial of service or other consequences because of excessive looping.",
+      "Files": [
+        "PhotoAlbum/Pages/Index.cshtml.cs"
+      ],
+      "Explanation": "IndexModel.OnPostUploadAsync iterates the request-controlled files collection in an unbounded foreach loop (line 63). The configured MaxFilesPerUpload value is not enforced in this handler, so an upload request can cause processing of every submitted file."
+    },
+    {
+      "Id": "CWE-1057",
+      "Name": "Data Access Operations Outside of Expected Data Manager Component",
+      "Category": "Code Quality",
+      "Severity": "potential",
+      "StoryPoint": 5,
+      "Description": "The product uses a dedicated, central data manager component as required by design, but it contains code that performs data-access operations that do not use this data manager.",
+      "Files": [
+        "PhotoAlbum/Pages/PhotoFile.cshtml.cs",
+        "PhotoAlbum/Services/PhotoService.cs"
+      ],
+      "Explanation": "PhotoFileModel.OnGetAsync retrieves metadata through IPhotoService but directly reads image content with System.IO.File.ReadAllBytesAsync (line 67). File persistence is otherwise handled by PhotoService, so the read bypasses the application's central photo service/data manager."
+    },
+    {
+      "Id": "CWE-820",
+      "Name": "Missing Synchronization",
+      "Category": "Concurrency & Synchronization",
+      "Severity": "potential",
+      "StoryPoint": 8,
+      "Description": "The product utilizes a shared resource in a concurrent manner but does not attempt to synchronize access to the resource.",
+      "Files": [
+        "PhotoAlbum/Pages/PhotoFile.cshtml.cs",
+        "PhotoAlbum/Services/PhotoService.cs"
+      ],
+      "Explanation": "PhotoFileModel.OnGetAsync checks File.Exists and then reads the file in a separate operation (lines 61-67), while PhotoService.DeletePhotoAsync can delete that same photo file concurrently (lines 238-245). No synchronization protects this shared file; deletion between the check and read can turn a valid photo request into an exception and HTTP 500."
+    },
+    {
+      "Id": "CWE-259",
+      "Name": "Use of Hard-coded Password",
+      "Category": "Credentials & Secrets",
+      "Severity": "optional",
+      "StoryPoint": 5,
+      "Description": "The product contains a hard-coded password, which it uses for its own inbound authentication or for outbound communication to external components.",
+      "Files": [
+        "infra/main.bicep"
+      ],
+      "Explanation": "The SQL administrator password expression in infra/main.bicep:59 embeds a fixed password prefix and appends a deterministic uniqueString expression, making the credential partly hard-coded."
+    },
+    {
+      "Id": "CWE-778",
+      "Name": "Insufficient Logging",
+      "Category": "Credentials & Secrets",
+      "Severity": "potential",
+      "StoryPoint": 3,
+      "Description": "When a security-critical event occurs, the product either does not record the event or omits important details about the event when logging it.",
+      "Files": [
+        "PhotoAlbum/Pages/Login.cshtml.cs"
+      ],
+      "Explanation": "LoginModel.OnPostAsync rejects invalid administrator credentials and returns an error at lines 52-57 without logging the failed authentication event; the page model has no logger dependency."
+    },
+    {
+      "Id": "CWE-798",
+      "Name": "Use of Hard-coded Credentials",
+      "Category": "Credentials & Secrets",
+      "Severity": "optional",
+      "StoryPoint": 5,
+      "Description": "The product contains hard-coded credentials, such as a password or cryptographic key.",
+      "Files": [
+        "infra/main.bicep"
+      ],
+      "Explanation": "The SQL administrator credential in infra/main.bicep:59 contains a fixed password prefix combined with a deterministic uniqueString expression rather than a fully externally supplied credential."
+    }
+  ]
+}
