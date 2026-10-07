@@ -1,0 +1,65 @@
+{
+  "GeneratedAt": "2026-10-07T01:34:44.637524Z",
+  "ProjectPath": ".",
+  "Summary": {
+    "TotalFindings": 3,
+    "CveCount": 0,
+    "CweCount": 3,
+    "BySeverity": {
+      "mandatory": 0,
+      "optional": 1,
+      "potential": 2
+    },
+    "ByCategory": {
+      "Code Quality": 1,
+      "Credentials & Secrets": 1,
+      "Injection Attacks": 1
+    },
+    "TotalRulesAssessed": 59,
+    "RulesPassed": 56
+  },
+  "CveFindings": [],
+  "CweFindings": [
+    {
+      "Id": "CWE-606",
+      "Name": "Unchecked Input for Loop Condition",
+      "Category": "Code Quality",
+      "Severity": "potential",
+      "StoryPoint": 3,
+      "Description": "The product does not properly check inputs that are used for loop conditions, potentially leading to a denial of service or other consequences because of excessive looping.",
+      "Files": [
+        "PhotoAlbum/Pages/Index.cshtml.cs",
+        "PhotoAlbum/Services/PhotoService.cs",
+        "PhotoAlbum/appsettings.json",
+        "PhotoAlbum/Program.cs"
+      ],
+      "Explanation": "IndexModel.OnPostUploadAsync accepts an anonymous multipart POST to /Index?handler=Upload (lines 53-58), checks only whether the file collection is empty, and iterates every supplied file (lines 63-94) without enforcing FileUpload:MaxFilesPerUpload=10 (appsettings.json line 13). A caller can obtain the normal antiforgery token from the public gallery and submit, for example, 100 small valid PNG files within the framework request and form-binding limits. Every successful iteration uploads and saves a file and database row, then calls GetAllPhotosAsync (Index.cshtml.cs lines 65-70), which sorts and materializes the entire Photos table (PhotoService.cs lines 43-49). Thus attacker-controlled file count drives repeated expensive database reads with work proportional to the batch count times the existing gallery size, plus growth during the batch. Program.cs lines 29-34 and PhotoService.cs lines 89-105 constrain multipart section/file byte sizes, not this configured batch count or the repeated full-gallery work. The loop is finite and framework-bounded, but its application-level input count remains unchecked and permits excessive processing beyond the declared batch limit."
+    },
+    {
+      "Id": "CWE-778",
+      "Name": "Insufficient Logging",
+      "Category": "Credentials & Secrets",
+      "Severity": "potential",
+      "StoryPoint": 3,
+      "Description": "When a security-critical event occurs, the product either does not record the event or omits important details about the event when logging it.",
+      "Files": [
+        "PhotoAlbum/Pages/Login.cshtml.cs",
+        "PhotoAlbum/appsettings.json"
+      ],
+      "Explanation": "LoginModel.OnPostAsync compares the submitted username and password at lines 52-54, then returns the login page for invalid credentials at lines 55-57 without recording an authentication-failure event. LoginModel has no ILogger or other audit-event mechanism (lines 18-23); neither the rejected username nor the failure outcome is logged. Consequently repeated invalid admin-login attempts cannot be identified from application authentication audit events. PhotoAlbum/appsettings.json:16-20 sets Microsoft.AspNetCore logging to Warning; ordinary framework request diagnostics do not provide a credential-validation failure event for this custom handler. Credential values are omitted."
+    },
+    {
+      "Id": "CWE-79",
+      "Name": "Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')",
+      "Category": "Injection Attacks",
+      "Severity": "optional",
+      "StoryPoint": 8,
+      "Description": "The product does not neutralize or incorrectly neutralizes user-controllable input before it is placed in output that is used as a web page that is served to other users.",
+      "Files": [
+        "PhotoAlbum/wwwroot/js/upload.js",
+        "PhotoAlbum/Pages/Index.cshtml"
+      ],
+      "Explanation": "First confirmed match: DOM-based cross-site scripting in handleFiles()/showErrors(). The file-input change and drop handlers (upload.js:49-58) pass user-selected files to handleFiles(). A rejected file's attacker-crafted file.name is interpolated into an error at line 73 (also line 75), passed to showErrors() at lines 81-82, and inserted without HTML encoding through innerHTML at lines 224-226. A filename containing an img element with an onerror handler is interpreted as HTML and can execute JavaScript in the application's origin, even though the enclosing feedback element starts hidden (Index.cshtml:32-40). Exploitation is interaction-dependent: a victim must obtain and select or drop an attacker-crafted filename on a filesystem that permits the markup; an attacker merely uploading a filename does not automatically execute script for other gallery visitors. This is not confirmed automatic gallery stored XSS: the ordinary gallery GET uses Razor-encoded OriginalFileName expressions (Index.cshtml:66-70). Only this first confirmed filename-to-error-HTML match is recorded for CWE-79."
+    }
+  ]
+}
