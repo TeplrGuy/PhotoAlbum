@@ -263,11 +263,14 @@ if (document.readyState === 'loading') {
 <div class="target-select-container">
   <label for="target-select">Target Compute Service:</label>
   <select id="target-select" onchange="onTargetChange(this.value)">
-    <option value="AppService.Windows">Azure App Service</option>
-    <option value="AppService.Linux">Azure Kubernetes Service</option>
-    <option value="AKS.Linux">Azure Container Apps</option>
-    <option value="AKS.Windows">Azure App Service Container</option>
-    <option value="ACA">Azure App Service Managed Instance</option>
+    <option value="AppService.Windows">Azure App Service - Windows</option>
+    <option value="AppService.Linux">Azure App Service - Linux</option>
+    <option value="AKS.Linux">Azure Kubernetes Service - Linux</option>
+    <option value="AKS.Windows">Azure Kubernetes Service - Windows</option>
+    <option value="ACA">Azure Container Apps</option>
+    <option value="AppServiceContainer.Linux">Azure App Service Container - Linux</option>
+    <option value="AppServiceContainer.Windows">Azure App Service Container - Windows</option>
+    <option value="AppServiceManagedInstance.Windows">Azure App Service Managed Instance - Windows</option>
   </select>
 </div>
 <div class="report-card">
@@ -732,7 +735,7 @@ flowchart LR
 <th>Service</th><th>Method</th><th>Path</th><th>Request Type</th><th>Response Type</th>
 </tr></thead><tbody>
 <tr><td>PhotoAlbum / IndexModel</td><td>GET</td><td><code>/</code>, <code>/Index</code></td><td>None</td><td>200 HTML gallery; load failure produces empty gallery (<code>PhotoAlbum/Pages/Index.cshtml:1-2</code>, <code>PhotoAlbum/Pages/Index.cshtml.cs:35-45</code>).</td></tr>
-<tr><td>PhotoAlbum / IndexModel</td><td>POST</td><td><code>/Index?handler=Upload</code> (root page alias also resolves handler)</td><td>Multipart <code>files</code>: <code>List<IFormFile></code>; antiforgery token</td><td>200 JSON anonymous batch result (<code>success</code>, <code>uploadedPhotos</code>, <code>failedUploads</code>); 400 JSON when no files; per-file rejection remains in 200 batch response (<code>PhotoAlbum/Pages/Index.cshtml.cs:53-101</code>, <code>PhotoAlbum/wwwroot/js/upload.js:97-115</code>).</td></tr>
+<tr><td>PhotoAlbum / IndexModel</td><td>POST</td><td><code>/Index?handler=Upload</code> (root page alias also resolves handler)</td><td>Multipart <code>files</code>: <code>List&lt;IFormFile&gt;</code>; antiforgery token</td><td>200 JSON anonymous batch result (<code>success</code>, <code>uploadedPhotos</code>, <code>failedUploads</code>); 400 JSON when no files; per-file rejection remains in 200 batch response (<code>PhotoAlbum/Pages/Index.cshtml.cs:53-101</code>, <code>PhotoAlbum/wwwroot/js/upload.js:97-115</code>).</td></tr>
 <tr><td>PhotoAlbum / DetailModel</td><td>GET</td><td><code>/Detail/{id:int?}</code> (query <code>id</code> also binds)</td><td>Nullable integer ID</td><td>200 HTML detail/navigation; 404 missing ID, absent record or read failure (<code>PhotoAlbum/Pages/Detail.cshtml:1</code>, <code>PhotoAlbum/Pages/Detail.cshtml.cs:47-84</code>).</td></tr>
 <tr><td>PhotoAlbum / DetailModel</td><td>POST</td><td><code>/Detail/{id:int?}?handler=Delete</code></td><td>Integer ID; antiforgery token; authenticated cookie</td><td>Cookie challenge redirects anonymous callers to login; 302 gallery redirect on normal completion, 302 detail redirect on caught failure (<code>PhotoAlbum/Pages/Detail.cshtml:27-29</code>, <code>PhotoAlbum/Pages/Detail.cshtml.cs:92-112</code>, <code>PhotoAlbum/Program.cs:13-18</code>).</td></tr>
 <tr><td>PhotoAlbum / PhotoFileModel</td><td>GET</td><td><code>/photo/{id:int}</code></td><td>Integer route ID</td><td>200 image <code>FileContentResult</code>; 404 missing metadata/file; 500 caught serving exception (<code>PhotoAlbum/Pages/PhotoFile.cshtml:1</code>, <code>PhotoAlbum/Pages/PhotoFile.cshtml.cs:37-82</code>).</td></tr>
@@ -752,7 +755,7 @@ flowchart LR
 <h2 id="dtos-contracts">DTOs & Contracts</h2>
 <ul>
 <li><code>IFormFile</code> is the framework upload request contract; the handler accepts a list. <code>UploadResult</code> is a mutable service-level outcome class, not the serialized batch response (<code>PhotoAlbum/Services/IPhotoService.cs:28</code>, <code>PhotoAlbum/Models/UploadResult.cs:6-26</code>).</li>
-<li><code>Photo</code> is a mutable domain entity used for server-rendered views and projected anonymous upload responses; see <a href="data-architecture.md">data-architecture.md</a> for entity fields and persistence (<code>PhotoAlbum/Pages/Index.cshtml.cs:30,69-83</code>).</li>
+<li><code>Photo</code> is a mutable domain entity used for server-rendered views and projected anonymous upload responses; see <a href="facts/data-architecture.md">data-architecture.md</a> for entity fields and persistence (<code>PhotoAlbum/Pages/Index.cshtml.cs:30,69-83</code>).</li>
 <li><code>IndexModel</code>, <code>DetailModel</code>, <code>PhotoFileModel</code> and <code>LoginModel</code> are mutable page/binding models, not versioned public DTO schemas. The login model handles request form data; photo serving returns bytes, not a JSON entity.</li>
 <li>The batch response contract is anonymous: a success flag and success/failure collections. Failure entries expose original request filename and a user-facing error. This is composition of operations within one service, not gateway-level aggregation (<code>PhotoAlbum/Pages/Index.cshtml.cs:60-101</code>).</li>
 <li>JSON uses framework <code>JsonResult</code> defaults; no custom serializer, OpenAPI, protobuf or GraphQL contract is registered in the inspected application (<code>PhotoAlbum/Pages/Index.cshtml.cs:96-101</code>, <code>PhotoAlbum/Program.cs:8-34</code>). No immutable record DTOs were found in the two model definitions.</li>
@@ -761,7 +764,7 @@ flowchart LR
 <p>Browser Fetch requests and HTML forms are synchronous HTTP request/response. Async C# methods await local service, EF and file operations; they are not queue-based or fire-and-forget communication. The page-to-service calls are direct DI method calls (<code>PhotoAlbum/wwwroot/js/upload.js:108-140</code>, <code>PhotoAlbum/Pages/Index.cshtml.cs:63-70</code>, <code>PhotoAlbum/Services/PhotoService.cs:43-65,155-186</code>). There is no gateway, service discovery client, client load balancer, broker, circuit breaker, custom application retry policy or explicit request timeout in these paths. Cloud SQL connection establishment has a declared 30-second timeout; no EF <code>EnableRetryOnFailure</code> or command timeout is configured (<code>infra/main.bicep:117</code>, <code>PhotoAlbum/Program.cs:22-23</code>).</p>
 <p>Upload failures are reported per file; a post-save metadata lookup can still throw outside the service's upload error handling. Gallery failures degrade to an empty page; detail read failures become 404; file-serving exceptions become 500. Deletion catches failures and redirects, and does not turn a service-level not-found result into 404 (<code>PhotoAlbum/Pages/Index.cshtml.cs:35-45,63-101</code>, <code>PhotoAlbum/Pages/Detail.cshtml.cs:80-112</code>, <code>PhotoAlbum/Pages/PhotoFile.cshtml.cs:78-82</code>).</p>
 <p>Cookie authentication is registered; deletion checks only <code>IsAuthenticated</code>, not an explicit Admin role or photo ownership policy. Login issues an Admin role claim, but gallery, uploads and image reads have no authentication requirement. Razor forms use antiforgery tokens; the error model opts out. HTTPS redirection is enabled and HSTS is nondevelopment-only; IaC declares external ingress and an HTTPS output URL, but live TLS behavior is not verified (<code>PhotoAlbum/Program.cs:13-19,64-86</code>, <code>PhotoAlbum/Pages/Detail.cshtml.cs:94-99</code>, <code>PhotoAlbum/Pages/Login.cshtml.cs:60-68</code>, <code>PhotoAlbum/Pages/Index.cshtml:16-17</code>, <code>PhotoAlbum/Pages/Error.cshtml.cs:8</code>, <code>infra/main.bicep:173-174,229</code>).</p>
-<p>API availability depends on successful startup migration except when the test bypass is explicitly set. See <a href="configuration-inventory.md">configuration-inventory.md</a> for startup order and <a href="business-workflows.md">business-workflows.md</a> for validation rules.</p>
+<p>API availability depends on successful startup migration except when the test bypass is explicitly set. See <a href="facts/configuration-inventory.md">configuration-inventory.md</a> for startup order and <a href="facts/business-workflows.md">business-workflows.md</a> for validation rules.</p>
 <h2 id="service-technology-matrix">Service Technology Matrix</h2>
 <div class="table-wrap"><table><thead><tr>
 <th>Service</th><th>Web</th><th>Data Access</th><th>Discovery</th><th>Gateway</th><th>Actuator</th><th>Cache</th><th>Metrics</th>
@@ -873,7 +876,7 @@ sequenceDiagram
 <tr><td><code>AzureStorageBlob:Endpoint</code></td><td>Unset locally; storage primary blob endpoint in deployment</td><td>Cloud injected through <code>AzureStorageBlob__Endpoint</code></td><td>No runtime storage consumer identified (<code>infra/main.bicep:147-149</code>, <code>deploy-to-azure.sh:164</code>, <code>PhotoAlbum/Services/PhotoService.cs:147-159</code>).</td></tr>
 <tr><td><code>AzureStorageBlob:ContainerName</code></td><td>Unset locally; <code>photos</code> in deployment</td><td>Cloud injected through <code>AzureStorageBlob__ContainerName</code></td><td>Not used by local storage implementation (<code>infra/main.bicep:151-153</code>, <code>deploy-to-azure.sh:165</code>).</td></tr>
 </tbody></table></div>
-<p>The legacy XML <code>connectionStrings/add[name=DefaultConnection]</code> contains a masked equivalent LocalDB connection, but is not registered as an application configuration provider (<code>PhotoAlbum/Web.config:3-5</code>, <code>PhotoAlbum/Program.cs:6,22-23</code>). See <a href="business-workflows.md">business-workflows.md</a> for validation behavior rather than interpreting the upload settings as guaranteed rules.</p>
+<p>The legacy XML <code>connectionStrings/add[name=DefaultConnection]</code> contains a masked equivalent LocalDB connection, but is not registered as an application configuration provider (<code>PhotoAlbum/Web.config:3-5</code>, <code>PhotoAlbum/Program.cs:6,22-23</code>). See <a href="facts/business-workflows.md">business-workflows.md</a> for validation behavior rather than interpreting the upload settings as guaranteed rules.</p>
 <h3 id="deployment-inputs-and-generated-identifiers">Deployment inputs and generated identifiers</h3>
 <div class="table-wrap"><table><thead><tr>
 <th>Property Key</th><th>Default</th><th>Profiles</th><th>Source</th>
@@ -956,7 +959,7 @@ sequenceDiagram
 </tr></thead><tbody>
 <tr><td>Photo</td><td>PhotoAlbum / gallery management</td><td>An uploaded picture and the information required to display/manage it</td><td>Associated local image content; no other domain entity relationships (<code>PhotoAlbum/Models/Photo.cs:5-64</code>, <code>PhotoAlbum/Services/PhotoService.cs:169-180</code>).</td></tr>
 </tbody></table></div>
-<p><code>UploadResult</code> is an operation outcome, not a domain entity. The administrator is configuration-backed and represented by login claims rather than a persisted account entity (<code>PhotoAlbum/Models/UploadResult.cs:3-26</code>, <code>PhotoAlbum/Pages/Login.cshtml.cs:42-68</code>). Persistence fields are documented in <a href="data-architecture.md">data-architecture.md</a>.</p>
+<p><code>UploadResult</code> is an operation outcome, not a domain entity. The administrator is configuration-backed and represented by login claims rather than a persisted account entity (<code>PhotoAlbum/Models/UploadResult.cs:3-26</code>, <code>PhotoAlbum/Pages/Login.cshtml.cs:42-68</code>). Persistence fields are documented in <a href="facts/data-architecture.md">data-architecture.md</a>.</p>
 <h2 id="service-to-domain-mapping">Service-to-Domain Mapping</h2>
 <div class="table-wrap"><table><thead><tr>
 <th>Service</th><th>Domain Context</th><th>Owned Entities</th><th>External Dependencies</th>
@@ -980,7 +983,7 @@ sequenceDiagram
 <li>The gallery loads photos under <strong>Newest-first rule</strong>. A database read failure logs an error and displays an empty gallery rather than distinguishing service failure from no photos (<code>PhotoAlbum/Pages/Index.cshtml.cs:35-45</code>, <code>PhotoAlbum/Services/PhotoService.cs:43-54</code>).</li>
 <li>Selecting a photo reloads the complete list, finds the requested picture and computes neighbors under <strong>Chronological navigation rule</strong>. Missing IDs/records or caught read failures appear as not found (<code>PhotoAlbum/Pages/Detail.cshtml.cs:47-84</code>).</li>
 <li>The image-serving page resolves metadata, locates local bytes and returns them; missing records or files are not found, other serving exceptions yield an error (<code>PhotoAlbum/Pages/PhotoFile.cshtml.cs:37-82</code>).</li>
-<li>The detail view presents derived sizes/aspect ratios under <strong>Display calculations rule</strong>. Browser/intermediary caching can reduce repeat image transfers; see <a href="data-architecture.md">data-architecture.md</a> for caching implementation (<code>PhotoAlbum/Pages/Detail.cshtml:104-139</code>).</li>
+<li>The detail view presents derived sizes/aspect ratios under <strong>Display calculations rule</strong>. Browser/intermediary caching can reduce repeat image transfers; see <a href="facts/data-architecture.md">data-architecture.md</a> for caching implementation (<code>PhotoAlbum/Pages/Detail.cshtml:104-139</code>).</li>
 </ol>
 <h3 id="workflow-3-sign-in-and-delete-a-photo">Workflow 3: Sign in and delete a photo</h3>
 <ol>
@@ -1122,7 +1125,7 @@ flowchart LR
 <tr><td>PhotoAlbum</td><td>Azure SQL</td><td>Production deployment intent</td><td>Same EF provider; underlying SQL client handles directory authentication</td><td>IaC/scripts supply encrypted TCP connection with directory-default authentication and 30-second connect timeout</td><td>Same startup EF migrations; successful live connectivity unverified (<code>infra/main.bicep:56-87,117,141-145</code>, <code>deploy-to-azure.sh:111-112,162-166</code>).</td></tr>
 <tr><td>PhotoAlbum.Tests</td><td>EF InMemory store</td><td>Unit-test fixture, not a runtime database profile</td><td>EF Core InMemory 9.0.9</td><td>Unique named in-process database per fixture</td><td>No relational schema migration in fixture (<code>PhotoAlbum.Tests/Unit/Services/PhotoServiceTests.cs:22-28</code>, <code>PhotoAlbum.Tests/PhotoAlbum.Tests.csproj:13</code>).</td></tr>
 </tbody></table></div>
-<p>The initial migration creates the metadata table and chronological index; no seed data is present in that migration. Runtime migration is skipped only by an explicit test flag, not automatically by Development/Production selection (<code>PhotoAlbum/Migrations/20250930101715_InitialCreate.cs:12-38</code>, <code>PhotoAlbum/Program.cs:45-61</code>). No raw SQL, stored procedures, explicit pooling tuning or additional database provider is configured in the inspected data path. For property keys and deployment configuration, see <a href="configuration-inventory.md">configuration-inventory.md</a>.</p>
+<p>The initial migration creates the metadata table and chronological index; no seed data is present in that migration. Runtime migration is skipped only by an explicit test flag, not automatically by Development/Production selection (<code>PhotoAlbum/Migrations/20250930101715_InitialCreate.cs:12-38</code>, <code>PhotoAlbum/Program.cs:45-61</code>). No raw SQL, stored procedures, explicit pooling tuning or additional database provider is configured in the inspected data path. For property keys and deployment configuration, see <a href="facts/configuration-inventory.md">configuration-inventory.md</a>.</p>
 <h2 id="data-ownership-per-service">Data Ownership per Service</h2>
 <div class="table-wrap"><table><thead><tr>
 <th>Service</th><th>Tables Owned</th><th>ORM Framework</th><th>Caching</th><th>Notes</th>
@@ -1147,17 +1150,17 @@ erDiagram
     }
 </div>
 <p>Source entity: <code>PhotoAlbum/Models/Photo.cs:8-64</code>; persisted SQL types and nullability: <code>PhotoAlbum/Migrations/20250930101715_InitialCreate.cs:18-27</code>. The DbContext defines a primary key and descending <code>IX_Photos_UploadedAt</code> index (<code>PhotoAlbum/Data/PhotoAlbumContext.cs:28-34</code>). There are no foreign keys, entity navigations, cascade mappings, unique filename constraints or concurrency tokens in this model; no relationship cardinality is fabricated for the diagram.</p>
-<p>Required string lengths are mapped through both entity annotations and Fluent configuration. The model's positive-size annotation is an input/model annotation, not a SQL check constraint in the initial migration; validation enforcement belongs in <a href="business-workflows.md">business-workflows.md</a> (<code>PhotoAlbum/Models/Photo.cs:18-54</code>, <code>PhotoAlbum/Data/PhotoAlbumContext.cs:36-57</code>, <code>PhotoAlbum/Migrations/20250930101715_InitialCreate.cs:29-32</code>).</p>
+<p>Required string lengths are mapped through both entity annotations and Fluent configuration. The model's positive-size annotation is an input/model annotation, not a SQL check constraint in the initial migration; validation enforcement belongs in <a href="facts/business-workflows.md">business-workflows.md</a> (<code>PhotoAlbum/Models/Photo.cs:18-54</code>, <code>PhotoAlbum/Data/PhotoAlbumContext.cs:36-57</code>, <code>PhotoAlbum/Migrations/20250930101715_InitialCreate.cs:29-32</code>).</p>
 <p>Database mutation uses individual EF <code>SaveChangesAsync</code> calls; no explicit <code>TransactionScope</code> or transaction coordinates the filesystem with SQL. Upload compensation is best-effort, and deletion likewise cannot atomically commit both stores (<code>PhotoAlbum/Services/PhotoService.cs:182-211,238-255</code>).</p>
 <h2 id="key-repository-methods">Key Repository Methods</h2>
 <div class="table-wrap"><table><thead><tr>
 <th>Service</th><th>Repository</th><th>Notable Methods</th><th>Purpose</th>
 </tr></thead><tbody>
-<tr><td>PhotoAlbum</td><td><code>IPhotoService</code> / <code>PhotoService</code> (repository-like facade, not a repository class)</td><td><code>Task<List<Photo>> GetAllPhotosAsync()</code></td><td>Descending upload-date query; materializes entire collection (<code>PhotoAlbum/Services/IPhotoService.cs:14</code>, <code>PhotoAlbum/Services/PhotoService.cs:43-49</code>).</td></tr>
-<tr><td>PhotoAlbum</td><td>Same</td><td><code>Task<Photo?> GetPhotoByIdAsync(int id)</code></td><td>DbSet key lookup via <code>FindAsync</code>; null if absent (<code>PhotoAlbum/Services/IPhotoService.cs:21</code>, <code>PhotoAlbum/Services/PhotoService.cs:61-65</code>).</td></tr>
-<tr><td>PhotoAlbum</td><td>Same</td><td><code>Task<UploadResult> UploadPhotoAsync(IFormFile file)</code></td><td>Adds one metadata entity and saves changes (<code>PhotoAlbum/Services/IPhotoService.cs:28</code>, <code>PhotoAlbum/Services/PhotoService.cs:169-189</code>).</td></tr>
-<tr><td>PhotoAlbum</td><td>Same</td><td><code>Task<bool> DeletePhotoAsync(int id)</code></td><td>Finds and removes metadata; returns false if absent (<code>PhotoAlbum/Services/IPhotoService.cs:35</code>, <code>PhotoAlbum/Services/PhotoService.cs:227-255</code>).</td></tr>
-<tr><td>PhotoAlbum</td><td><code>PhotoAlbumContext</code></td><td><code>DbSet<Photo> Photos</code></td><td>Direct EF collection used by the service (<code>PhotoAlbum/Data/PhotoAlbumContext.cs:9-19</code>).</td></tr>
+<tr><td>PhotoAlbum</td><td><code>IPhotoService</code> / <code>PhotoService</code> (repository-like facade, not a repository class)</td><td><code>Task&lt;List&lt;Photo&gt;&gt; GetAllPhotosAsync()</code></td><td>Descending upload-date query; materializes entire collection (<code>PhotoAlbum/Services/IPhotoService.cs:14</code>, <code>PhotoAlbum/Services/PhotoService.cs:43-49</code>).</td></tr>
+<tr><td>PhotoAlbum</td><td>Same</td><td><code>Task&lt;Photo?&gt; GetPhotoByIdAsync(int id)</code></td><td>DbSet key lookup via <code>FindAsync</code>; null if absent (<code>PhotoAlbum/Services/IPhotoService.cs:21</code>, <code>PhotoAlbum/Services/PhotoService.cs:61-65</code>).</td></tr>
+<tr><td>PhotoAlbum</td><td>Same</td><td><code>Task&lt;UploadResult&gt; UploadPhotoAsync(IFormFile file)</code></td><td>Adds one metadata entity and saves changes (<code>PhotoAlbum/Services/IPhotoService.cs:28</code>, <code>PhotoAlbum/Services/PhotoService.cs:169-189</code>).</td></tr>
+<tr><td>PhotoAlbum</td><td>Same</td><td><code>Task&lt;bool&gt; DeletePhotoAsync(int id)</code></td><td>Finds and removes metadata; returns false if absent (<code>PhotoAlbum/Services/IPhotoService.cs:35</code>, <code>PhotoAlbum/Services/PhotoService.cs:227-255</code>).</td></tr>
+<tr><td>PhotoAlbum</td><td><code>PhotoAlbumContext</code></td><td><code>DbSet&lt;Photo&gt; Photos</code></td><td>Direct EF collection used by the service (<code>PhotoAlbum/Data/PhotoAlbumContext.cs:9-19</code>).</td></tr>
 </tbody></table></div>
 <p>No custom SQL, projections at the database layer, pagination, batch key-query method or cross-service aggregation repository is implemented. The service facade combines persistence and file operations; it is not a separate data-access abstraction.</p>
 <h2 id="caching-strategy">Caching Strategy</h2>
